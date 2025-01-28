@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package x64;
+
+message X64FPXReg {
+    repeated uint32 significand = 1;
+    uint32 exponent = 2;
+    repeated uint32 reserved = 3;
+}
+
+message X64XMMReg {
+    repeated uint32 element = 1;
+}
+
+message X64FPRegs {
+    uint32 cwd = 1;
+    uint32 swd = 2;
+    uint32 ftw = 3;
+    uint32 fop = 4;
+    uint64 rip = 5;
+    uint64 rdp = 6;
+    uint32 mxcsr = 7;
+    uint32 mxcr_mask = 8;
+    repeated X64FPXReg st = 9;
+    repeated X64XMMReg xmm = 10;
+    repeated uint32 reserved = 11;
+}
+
+message CPUState {
+    repeated uint64 gregs = 1;
+    X64FPRegs fpregs = 2;
+}
+
+message RPCHeader {
+    uint32 msg_type = 1;
+    uint32 status = 2;
+    string client_id = 3;
+    uint64 payload_size = 4;
+}
+
+message Addr2Sym {
+    uint64 address = 1;
+    string name = 2;
+}
+
+message Page {
+    uint64 address = 1;
+    uint64 runtime_revision = 2;
+    uint64 client_revision = 3;
+    uint32 content_size = 4;
+    bytes content = 5;
+}
+
+message LoadLibMsg {
+    RPCHeader header = 1;
+    string library_name = 2;
+    repeated Addr2Sym addr2sym = 3;
+}
+
+message UserContext {
+    CPUState cpu = 1;
+    uint64 stack_bottom = 2;
+}
+
+message InvokeFuncMsg {
+    RPCHeader header = 1;
+    uint64 invokefunc_id = 2;
+    UserContext ctx = 3;
+    repeated Page page = 4;
+}
+
+message PullPageMsg {
+    RPCHeader header = 1;
+    repeated Page page = 2;
+}
+
+service SigRPC {
+    rpc LoadLib(LoadLibMsg) returns (LoadLibMsg) {}
+    rpc InvokeFunc(stream InvokeFuncMsg) returns (stream InvokeFuncMsg) {}
+    rpc PullPage(PullPageMsg) returns (PullPageMsg) {}
+}

@@ -1,0 +1,7 @@
+.vscode/c_cpp_properties.json
+build/Makefile
+build/CMakeFiles/
+build/cmake_install.cmake
+build/CMakeCache.txt
+build/libsigrpc_grpc_proto.a
+build/sigrpc-runtime

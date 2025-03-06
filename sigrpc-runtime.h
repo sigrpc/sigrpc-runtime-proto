@@ -262,6 +262,8 @@ private:
     void handle_request(int thread_key);
     std::mutex atomic_fd_mtx;
     int notify_listen(int sync_fd);
+    std::mutex resp_id_mtx;
+    uint64_t resp_id = 0;
 };
 
 class X64SigRPCService final : public SigRPC::Service

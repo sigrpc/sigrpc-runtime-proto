@@ -65,8 +65,9 @@ message UserContext {
 message InvokeFuncMsg {
     RPCHeader header = 1;
     uint64 invokefunc_id = 2;
-    UserContext ctx = 3;
-    repeated Page page = 4;
+    uint64 resp_id = 3;
+    UserContext ctx = 4;
+    repeated Page page = 5;
 }
 
 message PullPageMsg {

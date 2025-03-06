@@ -256,7 +256,8 @@ inline constexpr InvokeFuncMsg::Impl_::Impl_(
         page_{},
         header_{nullptr},
         ctx_{nullptr},
-        invokefunc_id_{::uint64_t{0u}} {}
+        invokefunc_id_{::uint64_t{0u}},
+        resp_id_{::uint64_t{0u}} {}
 
 template <typename>
 PROTOBUF_CONSTEXPR InvokeFuncMsg::InvokeFuncMsg(::_pbi::ConstantInitialized)
@@ -401,9 +402,11 @@ const ::uint32_t TableStruct_message_2eproto::offsets[] PROTOBUF_SECTION_VARIABL
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::x64::InvokeFuncMsg, _impl_.header_),
     PROTOBUF_FIELD_OFFSET(::x64::InvokeFuncMsg, _impl_.invokefunc_id_),
+    PROTOBUF_FIELD_OFFSET(::x64::InvokeFuncMsg, _impl_.resp_id_),
     PROTOBUF_FIELD_OFFSET(::x64::InvokeFuncMsg, _impl_.ctx_),
     PROTOBUF_FIELD_OFFSET(::x64::InvokeFuncMsg, _impl_.page_),
     0,
+    ~0u,
     ~0u,
     1,
     ~0u,
@@ -432,8 +435,8 @@ static const ::_pbi::MigrationSchema
         {73, -1, -1, sizeof(::x64::Page)},
         {86, 97, -1, sizeof(::x64::LoadLibMsg)},
         {100, 110, -1, sizeof(::x64::UserContext)},
-        {112, 124, -1, sizeof(::x64::InvokeFuncMsg)},
-        {128, 138, -1, sizeof(::x64::PullPageMsg)},
+        {112, 125, -1, sizeof(::x64::InvokeFuncMsg)},
+        {130, 140, -1, sizeof(::x64::PullPageMsg)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -469,23 +472,23 @@ const char descriptor_table_protodef_message_2eproto[] PROTOBUF_SECTION_VARIABLE
     "\022\036\n\006header\030\001 \001(\0132\016.x64.RPCHeader\022\024\n\014libr"
     "ary_name\030\002 \001(\t\022\037\n\010addr2sym\030\003 \003(\0132\r.x64.A"
     "ddr2Sym\"\?\n\013UserContext\022\032\n\003cpu\030\001 \001(\0132\r.x6"
-    "4.CPUState\022\024\n\014stack_bottom\030\002 \001(\004\"~\n\rInvo"
-    "keFuncMsg\022\036\n\006header\030\001 \001(\0132\016.x64.RPCHeade"
-    "r\022\025\n\rinvokefunc_id\030\002 \001(\004\022\035\n\003ctx\030\003 \001(\0132\020."
-    "x64.UserContext\022\027\n\004page\030\004 \003(\0132\t.x64.Page"
-    "\"F\n\013PullPageMsg\022\036\n\006header\030\001 \001(\0132\016.x64.RP"
-    "CHeader\022\027\n\004page\030\002 \003(\0132\t.x64.Page2\245\001\n\006Sig"
-    "RPC\022-\n\007LoadLib\022\017.x64.LoadLibMsg\032\017.x64.Lo"
-    "adLibMsg\"\000\022:\n\nInvokeFunc\022\022.x64.InvokeFun"
-    "cMsg\032\022.x64.InvokeFuncMsg\"\000(\0010\001\0220\n\010PullPa"
-    "ge\022\020.x64.PullPageMsg\032\020.x64.PullPageMsg\"\000"
-    "b\006proto3"
+    "4.CPUState\022\024\n\014stack_bottom\030\002 \001(\004\"\217\001\n\rInv"
+    "okeFuncMsg\022\036\n\006header\030\001 \001(\0132\016.x64.RPCHead"
+    "er\022\025\n\rinvokefunc_id\030\002 \001(\004\022\017\n\007resp_id\030\003 \001"
+    "(\004\022\035\n\003ctx\030\004 \001(\0132\020.x64.UserContext\022\027\n\004pag"
+    "e\030\005 \003(\0132\t.x64.Page\"F\n\013PullPageMsg\022\036\n\006hea"
+    "der\030\001 \001(\0132\016.x64.RPCHeader\022\027\n\004page\030\002 \003(\0132"
+    "\t.x64.Page2\245\001\n\006SigRPC\022-\n\007LoadLib\022\017.x64.L"
+    "oadLibMsg\032\017.x64.LoadLibMsg\"\000\022:\n\nInvokeFu"
+    "nc\022\022.x64.InvokeFuncMsg\032\022.x64.InvokeFuncM"
+    "sg\"\000(\0010\001\0220\n\010PullPage\022\020.x64.PullPageMsg\032\020"
+    ".x64.PullPageMsg\"\000b\006proto3"
 };
 static ::absl::once_flag descriptor_table_message_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_message_2eproto = {
     false,
     false,
-    1168,
+    1186,
     descriptor_table_protodef_message_2eproto,
     "message.proto",
     &descriptor_table_message_2eproto_once,
@@ -3006,7 +3009,13 @@ InvokeFuncMsg::InvokeFuncMsg(
   _impl_.ctx_ = (cached_has_bits & 0x00000002u)
                 ? CreateMaybeMessage<::x64::UserContext>(arena, *from._impl_.ctx_)
                 : nullptr;
-  _impl_.invokefunc_id_ = from._impl_.invokefunc_id_;
+  ::memcpy(reinterpret_cast<char *>(&_impl_) +
+               offsetof(Impl_, invokefunc_id_),
+           reinterpret_cast<const char *>(&from._impl_) +
+               offsetof(Impl_, invokefunc_id_),
+           offsetof(Impl_, resp_id_) -
+               offsetof(Impl_, invokefunc_id_) +
+               sizeof(Impl_::resp_id_));
 
   // @@protoc_insertion_point(copy_constructor:x64.InvokeFuncMsg)
 }
@@ -3021,9 +3030,9 @@ inline void InvokeFuncMsg::SharedCtor(::_pb::Arena* arena) {
   ::memset(reinterpret_cast<char *>(&_impl_) +
                offsetof(Impl_, header_),
            0,
-           offsetof(Impl_, invokefunc_id_) -
+           offsetof(Impl_, resp_id_) -
                offsetof(Impl_, header_) +
-               sizeof(Impl_::invokefunc_id_));
+               sizeof(Impl_::resp_id_));
 }
 InvokeFuncMsg::~InvokeFuncMsg() {
   // @@protoc_insertion_point(destructor:x64.InvokeFuncMsg)
@@ -3056,7 +3065,9 @@ PROTOBUF_NOINLINE void InvokeFuncMsg::Clear() {
       _impl_.ctx_->Clear();
     }
   }
-  _impl_.invokefunc_id_ = ::uint64_t{0u};
+  ::memset(&_impl_.invokefunc_id_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.resp_id_) -
+      reinterpret_cast<char*>(&_impl_.invokefunc_id_)) + sizeof(_impl_.resp_id_));
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
 }
@@ -3069,32 +3080,38 @@ const char* InvokeFuncMsg::_InternalParse(
 
 
 PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
-const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
+const ::_pbi::TcParseTable<3, 5, 3, 0, 2> InvokeFuncMsg::_table_ = {
   {
     PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_._has_bits_),
     0, // no _extensions_
-    4, 24,  // max_field_number, fast_idx_mask
+    5, 56,  // max_field_number, fast_idx_mask
     offsetof(decltype(_table_), field_lookup_table),
-    4294967280,  // skipmap
+    4294967264,  // skipmap
     offsetof(decltype(_table_), field_entries),
-    4,  // num_field_entries
+    5,  // num_field_entries
     3,  // num_aux_entries
     offsetof(decltype(_table_), aux_entries),
     &_InvokeFuncMsg_default_instance_._instance,
     ::_pbi::TcParser::GenericFallback,  // fallback
   }, {{
-    // repeated .x64.Page page = 4;
-    {::_pbi::TcParser::FastMtR1,
-     {34, 63, 2, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.page_)}},
+    {::_pbi::TcParser::MiniParse, {}},
     // .x64.RPCHeader header = 1;
     {::_pbi::TcParser::FastMtS1,
      {10, 0, 0, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.header_)}},
     // uint64 invokefunc_id = 2;
     {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(InvokeFuncMsg, _impl_.invokefunc_id_), 63>(),
      {16, 63, 0, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.invokefunc_id_)}},
-    // .x64.UserContext ctx = 3;
+    // uint64 resp_id = 3;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint64_t, offsetof(InvokeFuncMsg, _impl_.resp_id_), 63>(),
+     {24, 63, 0, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.resp_id_)}},
+    // .x64.UserContext ctx = 4;
     {::_pbi::TcParser::FastMtS1,
-     {26, 1, 1, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.ctx_)}},
+     {34, 1, 1, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.ctx_)}},
+    // repeated .x64.Page page = 5;
+    {::_pbi::TcParser::FastMtR1,
+     {42, 63, 2, PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.page_)}},
+    {::_pbi::TcParser::MiniParse, {}},
+    {::_pbi::TcParser::MiniParse, {}},
   }}, {{
     65535, 65535
   }}, {{
@@ -3104,10 +3121,13 @@ const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
     // uint64 invokefunc_id = 2;
     {PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.invokefunc_id_), -1, 0,
     (0 | ::_fl::kFcSingular | ::_fl::kUInt64)},
-    // .x64.UserContext ctx = 3;
+    // uint64 resp_id = 3;
+    {PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.resp_id_), -1, 0,
+    (0 | ::_fl::kFcSingular | ::_fl::kUInt64)},
+    // .x64.UserContext ctx = 4;
     {PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.ctx_), _Internal::kHasBitsOffset + 1, 1,
     (0 | ::_fl::kFcOptional | ::_fl::kMessage | ::_fl::kTvTable)},
-    // repeated .x64.Page page = 4;
+    // repeated .x64.Page page = 5;
     {PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.page_), -1, 2,
     (0 | ::_fl::kFcRepeated | ::_fl::kMessage | ::_fl::kTvTable)},
   }}, {{
@@ -3140,19 +3160,26 @@ const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
         2, this->_internal_invokefunc_id(), target);
   }
 
-  // .x64.UserContext ctx = 3;
+  // uint64 resp_id = 3;
+  if (this->_internal_resp_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        3, this->_internal_resp_id(), target);
+  }
+
+  // .x64.UserContext ctx = 4;
   if (cached_has_bits & 0x00000002u) {
     target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
-        3, _Internal::ctx(this),
+        4, _Internal::ctx(this),
         _Internal::ctx(this).GetCachedSize(), target, stream);
   }
 
-  // repeated .x64.Page page = 4;
+  // repeated .x64.Page page = 5;
   for (unsigned i = 0,
       n = static_cast<unsigned>(this->_internal_page_size()); i < n; i++) {
     const auto& repfield = this->_internal_page().Get(i);
     target = ::google::protobuf::internal::WireFormatLite::
-        InternalWriteMessage(4, repfield, repfield.GetCachedSize(), target, stream);
+        InternalWriteMessage(5, repfield, repfield.GetCachedSize(), target, stream);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -3172,7 +3199,7 @@ const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // repeated .x64.Page page = 4;
+  // repeated .x64.Page page = 5;
   total_size += 1UL * this->_internal_page_size();
   for (const auto& msg : this->_internal_page()) {
     total_size +=
@@ -3186,7 +3213,7 @@ const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
           1 + ::google::protobuf::internal::WireFormatLite::MessageSize(*_impl_.header_);
     }
 
-    // .x64.UserContext ctx = 3;
+    // .x64.UserContext ctx = 4;
     if (cached_has_bits & 0x00000002u) {
       total_size +=
           1 + ::google::protobuf::internal::WireFormatLite::MessageSize(*_impl_.ctx_);
@@ -3197,6 +3224,12 @@ const ::_pbi::TcParseTable<2, 4, 3, 0, 2> InvokeFuncMsg::_table_ = {
   if (this->_internal_invokefunc_id() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
         this->_internal_invokefunc_id());
+  }
+
+  // uint64 resp_id = 3;
+  if (this->_internal_resp_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_resp_id());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
@@ -3234,6 +3267,9 @@ void InvokeFuncMsg::MergeImpl(::google::protobuf::Message& to_msg, const ::googl
   if (from._internal_invokefunc_id() != 0) {
     _this->_internal_set_invokefunc_id(from._internal_invokefunc_id());
   }
+  if (from._internal_resp_id() != 0) {
+    _this->_internal_set_resp_id(from._internal_resp_id());
+  }
   _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -3257,8 +3293,8 @@ void InvokeFuncMsg::InternalSwap(InvokeFuncMsg* PROTOBUF_RESTRICT other) {
   swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   _impl_.page_.InternalSwap(&other->_impl_.page_);
   ::google::protobuf::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.invokefunc_id_)
-      + sizeof(InvokeFuncMsg::_impl_.invokefunc_id_)
+      PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.resp_id_)
+      + sizeof(InvokeFuncMsg::_impl_.resp_id_)
       - PROTOBUF_FIELD_OFFSET(InvokeFuncMsg, _impl_.header_)>(
           reinterpret_cast<char*>(&_impl_.header_),
           reinterpret_cast<char*>(&other->_impl_.header_));

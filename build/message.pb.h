@@ -2409,12 +2409,13 @@ class InvokeFuncMsg final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kPageFieldNumber = 4,
+    kPageFieldNumber = 5,
     kHeaderFieldNumber = 1,
-    kCtxFieldNumber = 3,
+    kCtxFieldNumber = 4,
     kInvokefuncIdFieldNumber = 2,
+    kRespIdFieldNumber = 3,
   };
-  // repeated .x64.Page page = 4;
+  // repeated .x64.Page page = 5;
   int page_size() const;
   private:
   int _internal_page_size() const;
@@ -2447,7 +2448,7 @@ class InvokeFuncMsg final :
   ::x64::RPCHeader* _internal_mutable_header();
 
   public:
-  // .x64.UserContext ctx = 3;
+  // .x64.UserContext ctx = 4;
   bool has_ctx() const;
   void clear_ctx() ;
   const ::x64::UserContext& ctx() const;
@@ -2472,13 +2473,23 @@ class InvokeFuncMsg final :
   void _internal_set_invokefunc_id(::uint64_t value);
 
   public:
+  // uint64 resp_id = 3;
+  void clear_resp_id() ;
+  ::uint64_t resp_id() const;
+  void set_resp_id(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_resp_id() const;
+  void _internal_set_resp_id(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:x64.InvokeFuncMsg)
  private:
   class _Internal;
 
   friend class ::google::protobuf::internal::TcParser;
   static const ::google::protobuf::internal::TcParseTable<
-      2, 4, 3,
+      3, 5, 3,
       0, 2>
       _table_;
   friend class ::google::protobuf::MessageLite;
@@ -2501,6 +2512,7 @@ class InvokeFuncMsg final :
     ::x64::RPCHeader* header_;
     ::x64::UserContext* ctx_;
     ::uint64_t invokefunc_id_;
+    ::uint64_t resp_id_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
   union { Impl_ _impl_; };
@@ -3964,7 +3976,30 @@ inline void InvokeFuncMsg::_internal_set_invokefunc_id(::uint64_t value) {
   _impl_.invokefunc_id_ = value;
 }
 
-// .x64.UserContext ctx = 3;
+// uint64 resp_id = 3;
+inline void InvokeFuncMsg::clear_resp_id() {
+  PROTOBUF_TSAN_WRITE(&_impl_._tsan_detect_race);
+  _impl_.resp_id_ = ::uint64_t{0u};
+}
+inline ::uint64_t InvokeFuncMsg::resp_id() const {
+  // @@protoc_insertion_point(field_get:x64.InvokeFuncMsg.resp_id)
+  return _internal_resp_id();
+}
+inline void InvokeFuncMsg::set_resp_id(::uint64_t value) {
+  _internal_set_resp_id(value);
+  // @@protoc_insertion_point(field_set:x64.InvokeFuncMsg.resp_id)
+}
+inline ::uint64_t InvokeFuncMsg::_internal_resp_id() const {
+  PROTOBUF_TSAN_READ(&_impl_._tsan_detect_race);
+  return _impl_.resp_id_;
+}
+inline void InvokeFuncMsg::_internal_set_resp_id(::uint64_t value) {
+  PROTOBUF_TSAN_WRITE(&_impl_._tsan_detect_race);
+  ;
+  _impl_.resp_id_ = value;
+}
+
+// .x64.UserContext ctx = 4;
 inline bool InvokeFuncMsg::has_ctx() const {
   bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
   PROTOBUF_ASSUME(!value || _impl_.ctx_ != nullptr);
@@ -4060,7 +4095,7 @@ inline void InvokeFuncMsg::set_allocated_ctx(::x64::UserContext* value) {
   // @@protoc_insertion_point(field_set_allocated:x64.InvokeFuncMsg.ctx)
 }
 
-// repeated .x64.Page page = 4;
+// repeated .x64.Page page = 5;
 inline int InvokeFuncMsg::_internal_page_size() const {
   return _internal_page().size();
 }

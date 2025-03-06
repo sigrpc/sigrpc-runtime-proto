@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <string>
 #include <signal.h>
+#include <setjmp.h>
 #include <sys/mman.h>
 #include <ucontext.h>
 #include <immintrin.h>
@@ -53,6 +54,8 @@ static thread_local rld_t request_info;
 
 static thread_local void *curr_page;
 
+static jmp_buf ret_buf;
+
 static void segv_handler(int signal, siginfo_t *si, void *arg)
 {
     const int page_size = getpagesize();
@@ -67,77 +70,7 @@ static void segv_handler(int signal, siginfo_t *si, void *arg)
         std::exit(EXIT_FAILURE);
     }
     if (curr_page == si_addr_page_start)
-    {
-        void *try_mmap = mmap(curr_page, page_size,
-                              PROT_READ | PROT_WRITE | PROT_EXEC,
-                              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        if (try_mmap != curr_page)
-        {
-            LOG_LOCATION("mmap failed");
-            /* cannot recover SEGV */
-            std::exit(EXIT_FAILURE);
-        }
-        curr_page = MAP_FAILED;
-
-        /* restore fpstate */
-        asm volatile(
-            "fxrstor (%%rax)"
-            :
-            : "a"(ctx->uc_mcontext.fpregs)
-            :);
-        asm volatile(
-            "push %%rax\n\t"
-            "popfq"
-            :
-            : "a"(ctx->uc_mcontext.gregs[REG_EFL])
-            :);
-        asm volatile(
-            "mov %0, %%rsp"
-            :
-            : "m"(ctx->uc_mcontext.gregs[REG_RSP])
-            :);
-#define SAVE_GREG(R)                           \
-    asm volatile(                              \
-        "push %%rax"                           \
-        :                                      \
-        : "a"(ctx->uc_mcontext.gregs[REG_##R]) \
-        :)
-
-        SAVE_GREG(RIP);
-        SAVE_GREG(RCX);
-        SAVE_GREG(RAX);
-        SAVE_GREG(RDX);
-        SAVE_GREG(RBX);
-        SAVE_GREG(RBP);
-        SAVE_GREG(RSI);
-        SAVE_GREG(RDI);
-        SAVE_GREG(R8);
-        SAVE_GREG(R9);
-        SAVE_GREG(R10);
-        SAVE_GREG(R11);
-        SAVE_GREG(R12);
-        SAVE_GREG(R13);
-        SAVE_GREG(R14);
-        SAVE_GREG(R15);
-#undef SAVE_GREG
-        asm volatile(
-            "pop %r15\n\t"
-            "pop %r14\n\t"
-            "pop %r13\n\t"
-            "pop %r12\n\t"
-            "pop %r11\n\t"
-            "pop %r10\n\t"
-            "pop %r9\n\t"
-            "pop %r8\n\t"
-            "pop %rdi\n\t"
-            "pop %rsi\n\t"
-            "pop %rbp\n\t"
-            "pop %rbx\n\t"
-            "pop %rdx\n\t"
-            "pop %rax\n\t"
-            "pop %rcx\n\t"
-            "ret");
-    }
+        longjmp(ret_buf, 1);
     { /* RAII scope, inline assembly part cannot call destructor */
         InvokeFuncMsg msg;
         rld_t *parent_tls_data;
@@ -201,10 +134,6 @@ static void segv_handler(int signal, siginfo_t *si, void *arg)
                 }
                 parent_tls_data->rt_object->page_manager.FlushClientChange(msg.page(), 0);
             }
-            else
-            {
-                LOG_LOCATION("request page skipped");
-            }
         }
         catch (const std::exception &e)
         {
@@ -213,64 +142,6 @@ static void segv_handler(int signal, siginfo_t *si, void *arg)
             std::exit(EXIT_FAILURE);
         }
     }
-    /* restore fpstate */
-    asm volatile(
-        "fxrstor (%%rax)"
-        :
-        : "a"(ctx->uc_mcontext.fpregs)
-        :);
-    asm volatile(
-        "push %%rax\n\t"
-        "popfq"
-        :
-        : "a"(ctx->uc_mcontext.gregs[REG_EFL])
-        :);
-    asm volatile(
-        "mov %0, %%rsp"
-        :
-        : "m"(ctx->uc_mcontext.gregs[REG_RSP])
-        :);
-#define SAVE_GREG(R)                           \
-    asm volatile(                              \
-        "push %%rax"                           \
-        :                                      \
-        : "a"(ctx->uc_mcontext.gregs[REG_##R]) \
-        :)
-
-    SAVE_GREG(RIP);
-    SAVE_GREG(RCX);
-    SAVE_GREG(RAX);
-    SAVE_GREG(RDX);
-    SAVE_GREG(RBX);
-    SAVE_GREG(RBP);
-    SAVE_GREG(RSI);
-    SAVE_GREG(RDI);
-    SAVE_GREG(R8);
-    SAVE_GREG(R9);
-    SAVE_GREG(R10);
-    SAVE_GREG(R11);
-    SAVE_GREG(R12);
-    SAVE_GREG(R13);
-    SAVE_GREG(R14);
-    SAVE_GREG(R15);
-#undef SAVE_GREG
-    asm volatile(
-        "pop %r15\n\t"
-        "pop %r14\n\t"
-        "pop %r13\n\t"
-        "pop %r12\n\t"
-        "pop %r11\n\t"
-        "pop %r10\n\t"
-        "pop %r9\n\t"
-        "pop %r8\n\t"
-        "pop %rdi\n\t"
-        "pop %rsi\n\t"
-        "pop %rbp\n\t"
-        "pop %rbx\n\t"
-        "pop %rdx\n\t"
-        "pop %rax\n\t"
-        "pop %rcx\n\t"
-        "ret");
 }
 
 const std::map<StatusCode, std::string> IsolatedRuntime::StatusDescription = {
@@ -294,7 +165,13 @@ std::vector<x64::Page> PageManager::get_page_diff(
     std::vector<Page> diff;
     size_t change_start;
     uint8_t *new_page_copy = reinterpret_cast<uint8_t *>(alloca(size));
-    std::memcpy(new_page_copy, new_page, size);
+    if (!setjmp(ret_buf))
+        std::memcpy(new_page_copy, new_page, size);
+    else
+    {
+        curr_page = MAP_FAILED;
+        return std::vector<x64::Page>();
+    }
     const uint8_t *new_byte_ptr = static_cast<const uint8_t *>(new_page_copy);
     uint8_t *original_byte_ptr = static_cast<uint8_t *>(original_page);
 
@@ -775,7 +652,6 @@ std::vector<x64::Page> PageManager::flush_local_page_change(std::shared_ptr<x64:
         munmap(try_mmap, src->content_size());
         if (try_mmap == reinterpret_cast<void *>(src->address()))
         {
-            page_state.erase(src->address());
             x64::Page release_page;
             release_page.set_address(src->address());
             release_page.set_content_size(0);
@@ -795,12 +671,9 @@ std::vector<x64::Page> PageManager::flush_local_page_change(std::shared_ptr<x64:
     if (curr_page == MAP_FAILED)
     {
         assert(page_state.at(src->address()).page_type == TYPE_PUSHPAGE);
-        munmap(reinterpret_cast<void *>(src->address()), src->content_size());
-        page_state.erase(src->address());
         x64::Page release_page;
         release_page.set_address(src->address());
         release_page.set_content_size(0);
-        LOG_LOCATION("munmaped " << reinterpret_cast<void *>(src->address()) << ", size=" << reinterpret_cast<void *>(src->content_size()));
         std::vector<x64::Page> diff(1);
         diff[0] = release_page;
         return diff;
@@ -819,13 +692,21 @@ std::vector<x64::Page> PageManager::FlushLocalChange()
     std::vector<x64::Page> diff_list;
     {
         std::lock_guard<std::mutex> lock(map_mtx);
-        for (std::pair<uint64_t, struct page_state_s> entry : page_state)
+        std::vector<uint64_t> keys(page_state.size());
+        for (std::map<uint64_t, struct page_state_s>::iterator entry = page_state.begin(); entry != page_state.end(); entry++)
         {
-            if (!entry.second.page)
+            if (!entry->second.page)
                 continue;
-            std::vector<x64::Page> diff = flush_local_page_change(entry.second.page);
+            std::vector<x64::Page> diff = flush_local_page_change(entry->second.page);
             if (diff.size())
+            {
                 diff_list.insert(diff_list.end(), diff.begin(), diff.end());
+                if (diff.at(0).content_size() == 0)
+                {
+                    heap_page_tbl.erase({.start = entry->second.page->address()});
+                    entry = page_state.erase(entry);
+                }
+            }
         }
     }
     return diff_list;
@@ -838,6 +719,12 @@ void PageManager::AddPushPage(x64::Page page)
         .page = make_shared<x64::Page>(page),
         .page_type = TYPE_PUSHPAGE,
     };
+    heap_page_tbl.insert({
+        .start = page.address(),
+        .end = page.address() + getpagesize(),
+        .wr_start = page.address(),
+        .sync_region = nullptr,
+    });
 }
 
 bool PageManager::FindPage(uint64_t page_start)
@@ -1116,7 +1003,7 @@ std::string IsolatedRuntime::ReadMsg(int fd)
     uint64_t msg_size = 0;
     read_state rs = read_state::READ_MSG_SIZE;
     ssize_t read_total = 0;
-    std::vector<char> buf(0);
+    std::string buf;
     while (rs != read_state::READ_FINISH)
     {
         switch (epoll_wait(_epoll_fd, &ev, 1, timeout_ms))
@@ -1175,7 +1062,7 @@ std::string IsolatedRuntime::ReadMsg(int fd)
         read_total = 0;
     }
     close(_epoll_fd);
-    return std::string(buf.begin(), buf.end());
+    return buf;
 }
 
 std::string IsolatedRuntime::AtomicReadMsg(int fd)
@@ -1204,7 +1091,7 @@ std::string IsolatedRuntime::AtomicReadMsg(int fd)
     uint64_t msg_size = 0;
     read_state rs = read_state::READ_MSG_SIZE;
     ssize_t read_total = 0;
-    std::vector<char> buf(0);
+    std::string buf;
     std::lock_guard<std::mutex> lock(atomic_fd_mtx);
     while (rs != read_state::READ_FINISH)
     {
@@ -1264,7 +1151,7 @@ std::string IsolatedRuntime::AtomicReadMsg(int fd)
         read_total = 0;
     }
     close(_epoll_fd);
-    return std::string(buf.begin(), buf.end());
+    return buf;
 }
 
 void IsolatedRuntime::WriteMsg(int fd, const google::protobuf::Message *msg)
@@ -1551,7 +1438,6 @@ void IsolatedRuntime::HandleInvokeFunc(int fd)
     uint64_t write_back_page_size = 0;
     void *ip = nullptr;
     void *return_addr = &&get_ctx;
-    void *client_return_addr;
     x64::CPUState cpu;
     x64::X64FPRegs fpregs;
     std::string byte_msg;
@@ -1649,6 +1535,7 @@ void IsolatedRuntime::HandleInvokeFunc(int fd)
     }
 
 set_context:
+    LOG_LOCATION("called " << addr2sym[msg.ctx().cpu().gregs()[REG_RIP]].c_str());
     try
     {
         page_manager.FlushClientChange(msg.page(), msg.ctx().stack_bottom());
@@ -1672,13 +1559,6 @@ set_context:
     }
 
     page_manager.WaitPrevClientFlush(msg.invokefunc_id());
-
-    /* save client return address */
-    std::memcpy(
-        &client_return_addr,
-        reinterpret_cast<void *>(
-            msg.ctx().cpu().gregs().at(REG_RSP)),
-        sizeof(void *));
 
     /* rewrite return address */
     std::memcpy(
@@ -1890,17 +1770,16 @@ get_ctx:
     cpu.add_gregs(msg.ctx().cpu().gregs().at(REG_CR2));
     resp.mutable_ctx()->mutable_cpu()->CopyFrom(cpu);
 
-    /* restore client return address on the stack */
-    std::memcpy(
-        reinterpret_cast<void *>(msg.ctx().cpu().gregs().at(REG_RSP)),
-        &client_return_addr,
-        sizeof(client_return_addr));
-    std::vector<x64::Page> diff_list = page_manager.FlushLocalChange();
-    for (x64::Page diff : diff_list)
-        resp.add_page()->CopyFrom(diff);
+    {
+        std::lock_guard<std::mutex> lock(resp_id_mtx);
+        std::vector<x64::Page> diff_list = page_manager.FlushLocalChange();
+        for (x64::Page diff : diff_list)
+            resp.add_page()->CopyFrom(diff);
 
-    for (shared_ptr<x64::Page> release_page : release_page_list)
-        resp.add_page()->CopyFrom(*release_page);
+        for (shared_ptr<x64::Page> release_page : release_page_list)
+            resp.add_page()->CopyFrom(*release_page);
+        resp.set_resp_id(resp_id++);
+    }
 
     resp.mutable_header()->set_status(StatusCode::OK);
     try
@@ -2062,7 +1941,7 @@ Status X64SigRPCService::LoadLib(ServerContext *context, const LoadLibMsg *reque
         /* add new runtime */
         try
         {
-            runtimes[client_id].second = std::make_shared<IsolatedRuntime>(client_id, sock_dir, 10 * 1000);
+            runtimes[client_id].second = std::make_shared<IsolatedRuntime>(client_id, sock_dir, 30 * 1000);
         }
         catch (const std::exception &e)
         {
